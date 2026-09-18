@@ -35,6 +35,7 @@ from winassist.core.models import (
     ScreenState,
     describe_action,
 )
+from winassist.core.security import ConfirmationProvider, sensitive_description
 
 # Un "pipeline" est l'ensemble des composants branchables de la boucle.
 # On utilise des interfaces minimales (Protocol) pour pouvoir injecter
@@ -114,6 +115,7 @@ class AgenticLoop:
         stagnation_limit: int = 3,
         action_delay: float = 0.4,     # pause après chaque action (laisser l'UI réagir)
         on_event: Optional[Callable[[str], None]] = None,
+        confirmer: Optional[ConfirmationProvider] = None,  # point 5
     ):
         self.perception = perception
         self.decider = decider
@@ -123,6 +125,9 @@ class AgenticLoop:
         self.action_delay = action_delay
         # Rappel pour streamer les événements vers la console / la voix.
         self.on_event = on_event or (lambda msg: None)
+        # Confirmation des actions sensibles (point 5) : si absent,
+        # toute action sensible est REFUSÉE d'office (règle défensive).
+        self.confirmer = confirmer
         # Drapeau d'interruption : posé par un thread externe (voix,
         # clavier) pour arrêter la boucle entre deux actions.
         self.cancel_requested = False
@@ -197,7 +202,32 @@ class AgenticLoop:
                 history.record(i, action, before_sig, before_sig, ok=False, error=str(exc))
                 return RunResult(False, str(exc), iterations=i, history=history, final_state=state)
 
-            # -- (d) EXÉCUTION ----------------------------------------
+            # -- (d) CONFIRMATION DES ACTIONS SENSIBLES (point 5) ---------
+            #  Avant toute exécution : si l'action est dangereuse (corbeille,
+            #  extinction, suppression...), on exige l'accord explicite de
+            #  l'utilisateur. Sans confirmer, on REFUSE — jamais d'exécution
+            #  silencieuse d'une action irréversible.
+            warning = sensitive_description(resolved)
+            if warning is not None:
+                confirmer = self.confirmer
+                # Accepte objet à .confirm(desc) OU simple callable(desc).
+                ask = confirmer.confirm if confirmer is not None and hasattr(confirmer, "confirm") else confirmer
+                allowed = ask(warning) if ask is not None else False
+                if not allowed:
+                    refusal = (
+                        "Action sensible refusée : aucune confirmation disponible."
+                        if self.confirmer is None else
+                        f"Action sensible refusée par l'utilisateur."
+                    )
+                    self._log(f"  -> {refusal} : {describe_action(resolved)}")
+                    history.record(i, resolved, before_sig, before_sig, ok=False, error=refusal)
+                    # Un refus arrête la tâche : déclarer "réussi" juste
+                    # après serait mensonger pour l'utilisateur.
+                    return RunResult(False, refusal,
+                                     iterations=i, history=history, final_state=state)
+                self._log(f"  -> Confirmé par l'utilisateur : {warning}")
+
+            # -- (d') EXÉCUTION ----------------------------------------
             self._log(f"[{i}] {describe_action(resolved)}")
             try:
                 ok, feedback = self.executor.execute(resolved)

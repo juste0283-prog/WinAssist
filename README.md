@@ -26,7 +26,7 @@ Ce dépôt contient les points 1 et 2 du plan de développement :
 | 3 | **Boucle agentique** | Décision → action → observation, avec garde-fous | ✅ implémenté |
 | 4 | **Exécution des actions** | Primitives universelles + raccourcis système | ✅ clics/clavier + raccourcis |
 | 5 | **Retour vocal (TTS)** | Confirmation orale, descriptions, erreurs | ✅ pyttsx3 + edge-tts |
-| 6 | **Sécurité** | Confirmation avant actions sensibles, journal, interruption | *point 5* |
+| 6 | **Sécurité** | Confirmation avant actions sensibles, journal, interruption | ✅ confirmations + journal |
 
 ---
 
@@ -38,6 +38,8 @@ winassist/
 │   ├── models.py              #   modèles Pydantic : écran + actions
 │   ├── context.py             #   DecisionContext (le "paquet" remis à l'IA)
 │   ├── history.py             #   journal des actions + détection de blocage
+│   ├── security.py            #   garde-fous : actions sensibles + confirmation
+│   ├── journal.py             #   journal de session JSONL, réécoutable
 │   └── loop.py                #   LA boucle agentique (perception→décision→action)
 ├── perception/                # "voir" l'écran
 │   └── uia.py                 #   extraction de l'arbre UI Automation (Win10/11)
@@ -190,6 +192,15 @@ Le **mot d'activation** évite d'exécuter des phrases entendues au hasard.
 Pendant l'exécution d'une tâche, une **interruption vocale** (« arrête »)
 ou la touche **Échap** arrêtent la boucle immédiatement.
 
+### Sécurité intégrée (point 5)
+
+- Les actions **sensibles** (« vide la corbeille », « éteins le PC »...)
+  demandent une **confirmation vocale** (« Confirme avec oui, ou dis
+  non »). Sans confirmation, elles sont refusées d'office.
+- Chaque session écrit un **journal** dans `logs/` (JSON Lines) : dic
+  « lit le journal » pour réécouter la session (`WINASSIST_JOURNAL=0` pour
+  couper).
+
 ### TTS au choix
 
 - `WINASSIST_TTS_ENGINE=pyttsx3` : voix locale Windows (défaut, sans réseau).
@@ -236,8 +247,9 @@ aucun clic réel, aucun accès réseau, aucun micro nécessaire.
    fond d'écran, dossiers personnels (`actions/quick_actions.py`, action
    `SystemAction` ; les raccourcis sensibles sont déjà déclarés pour la
    sécurité) ;
-5. ⏳ **Fiabilité & confort** — confirmations avant action destructrice,
-   journal écoutable, interruption vocale ;
+5. ✅ **Fiabilité & confort** — confirmation vocale avant action
+   destructrice, journal écoutable (« lit le journal »), interruption
+   vocale et touche Échap (`core/security.py`, `core/journal.py`) ;
 6. ⏳ **Scénarios multi-étapes réels** (ex. « ouvre WhatsApp et lance la
    discussion avec maman »).
 
