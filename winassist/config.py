@@ -140,10 +140,14 @@ class Config:
     # --- Mot d'activation (wake word) ------------------------------
     #  "1" : l'assistant n'agit que si on l'appelle d'abord.
     wake_word_enabled: bool = field(default_factory=lambda: _env_bool("WINASSIST_WAKE_WORD", True))
-    #  Phrases d'activation (séparées par des virgules).
+    #  Phrases d'activation (séparées par des virgules). Les variantes
+    #  « assistant » etc. sont comprises du modèle Vosk français (le terme
+    #  inventé « winassist » est hors-vocabulaire) ; « winassist » marche
+    #  parfaitement avec des STT plus riches (Whisper/API).
     wake_phrases: str = field(default_factory=lambda: os.environ.get(
         "WINASSIST_WAKE_PHRASES",
-        "ok winassist,hey winassist,bonjour winassist,winassist",
+        "ok winassist,hey winassist,bonjour winassist,winassist,"
+        "ok assistant,assistant,dis assistant",
     ))
 
     @classmethod
