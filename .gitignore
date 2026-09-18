@@ -12,5 +12,8 @@ venv/
 logs/
 *.log
 
+# Modèles STT locaux (téléchargeables : scripts/download_models.py)
+models/
+
 # Caches divers
 .DS_Store

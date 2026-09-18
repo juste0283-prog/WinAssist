@@ -26,5 +26,10 @@ edge-tts>=7.0           # voix Edge naturelles (optionnel, réseau)
 # --- Entrée vocale (STT) ---------------------------------------
 sounddevice>=0.5        # capture micro (PortAudio fourni dans le paquet)
 # Moteurs STT (au choix ; le plus simple à l'usage) :
-faster-whisper>=1.0     # Whisper LOCAL hors-ligne (modèle à télécharger une fois)
-# vosk>=0.3.45          # alternative locale légère hors-ligne (modèle FR à télécharger)
+# faster-whisper>=1.0   # Whisper LOCAL hors-ligne (modèle à télécharger une fois)
+#                        # ATTENTION : pas (encore) de wheel pour Python 3.13 :
+#                        # l'installation compile depuis les sources (= très lent).
+vosk==0.3.41            # alternative locale LÉGÈRE hors-ligne (modèle FR à
+#                        # télécharger : python scripts/download_models.py --vosk).
+#                        # Sur Python 3.13, installer avec :
+#                        #   python -m pip install --only-binary=:all: vosk==0.3.41
