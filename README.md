@@ -22,7 +22,7 @@ Ce dépôt contient les points 1 et 2 du plan de développement :
 | # | Brique | Rôle | Statut |
 |---|--------|------|--------|
 | 1 | **Entrée vocale (STT)** | Whisper + repli Vosk, mot d'activation | ✅ implémenté |
-| 2 | **Perception de l'écran** | Arbre UIA de la fenêtre active (+ repli vision) | ✅ UIA / *vision point 3* |
+| 2 | **Perception de l'écran** | Arbre UIA de la fenêtre active (+ repli vision) | ✅ UIA + vision |
 | 3 | **Boucle agentique** | Décision → action → observation, avec garde-fous | ✅ implémenté |
 | 4 | **Exécution des actions** | Primitives universelles + raccourcis système | ✅ clics/clavier / *raccourcis point 4* |
 | 5 | **Retour vocal (TTS)** | Confirmation orale, descriptions, erreurs | ✅ pyttsx3 + edge-tts |
@@ -41,7 +41,7 @@ winassist/
 │   └── loop.py                #   LA boucle agentique (perception→décision→action)
 ├── perception/                # "voir" l'écran
 │   └── uia.py                 #   extraction de l'arbre UI Automation (Win10/11)
-│   └── vision.py              #   repli vision (point 3)
+│   └── vision.py              #   repli vision : capture + modèle multimodal
 ├── decision/                  # "réfléchir"
 │   ├── base.py                #   interfaces DecisionProvider / DecisionContext
 │   ├── mock.py                #   cerveau local à règles (démo, tests)
@@ -115,6 +115,7 @@ Puis essaye, dans l'ordre :
 > ouvre le bloc-notes          # ouvre Notepad via raccourci système
 > tape bonjour                 # saisit le texte dans Notepad
 > écran                        # montre ce que l'assistant "voit" (UIA)
+> décris                       # décrive l'écran en français (voix/vision)
 > valide
 > quitter
 ```
@@ -194,6 +195,20 @@ ou la touche **Échap** arrêtent la boucle immédiatement.
 
 ---
 
+## 4ter. Repli vision (point 3)
+
+Quand l'arbre UIA ne voit aucun élément interactif nommé (jeux, canvas,
+vieilles applications), la perception bascule automatiquement sur une
+**analyse d'image** : capture d'écran (mss) envoyée à un modèle multimodal
+(`WINASSIST_VISION_MODEL`, par défaut le modèle de décision). La commande
+`décris` décrit l'écran en français pour la voix.
+
+Exigence : un modèle multimodal (ex. `gpt-4o-mini`) avec
+`WINASSIST_LLM_MODE=openai` et `WINASSIST_API_KEY`. Sans cela, le repli
+vision est simplement contourné et on garde la vue UIA.
+
+---
+
 ## 5. Tester le code
 
 ```powershell
@@ -211,8 +226,9 @@ aucun clic réel, aucun accès réseau, aucun micro nécessaire.
 1. ✅ **Boucle perception→décision→action** ;
 2. ✅ **Voix de bout en bout** — STT (Whisper/Vosk) + mot d'activation +
    TTS + interruption vocale ;
-3. ⏳ **Repli vision** — quand l'arbre UIA est vide :
-   capture d'écran + modèle multimodal (`perception/vision.py`) ;
+3. ✅ **Repli vision** — quand UIA ne voit rien : capture d'écran + modèle
+   multimodal, description de l'écran en français pour la voix
+   (`perception/vision.py`, commande `décris`) ;
 4. ⏳ **Raccourcis système** — volume, corbeille, fond d'écran...
    (`actions/quick_actions.py`) ;
 5. ⏳ **Fiabilité & confort** — confirmations avant action destructrice,

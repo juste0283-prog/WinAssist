@@ -85,6 +85,16 @@ class Config:
     # --- Perception --------------------------------------------
     #  Nombre maximal d'éléments UIA envoyés à l'IA (limite de tokens).
     element_limit: int = field(default_factory=lambda: int(os.environ.get("WINASSIST_ELEMENT_LIMIT", "80")))
+    #  Repli vision (point 3) : si l'écran contient moins d'éléments
+    #  interactifs NOMÉS que ce seuil, on bascule sur l'analyse d'image
+    #  par un modèle multimodal.
+    vision_enabled: bool = field(default_factory=lambda: _env_bool("WINASSIST_VISION_FALLBACK", True))
+    vision_min_named_elements: int = field(default_factory=lambda: int(os.environ.get("WINASSIST_VISION_MIN_ELEMENTS", "1")))
+    #  Modèle utilisé pour la vision (doit être multimodal ; par défaut,
+    #  on réutilise le modèle de décision).
+    vision_model: str = field(default_factory=lambda: os.environ.get("WINASSIST_VISION_MODEL", ""))
+    #  Taille maximale d'image côté vision (en octets) pour limiter le coût.
+    vision_max_bytes: int = field(default_factory=lambda: int(os.environ.get("WINASSIST_VISION_MAX_BYTES", "1500000")))
 
     # --- Sécurité -----------------------------------------------
     #  Sécurité anti-folie de pyautogui : déplacer la souris dans un
