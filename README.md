@@ -47,6 +47,7 @@ winassist/
 ├── decision/                  # "réfléchir"
 │   ├── base.py                #   interfaces DecisionProvider / DecisionContext
 │   ├── mock.py                #   cerveau local à règles (démo, tests)
+│   ├── compound.py            #   phrases composées : « ouvre X puis tape Y »
 │   └── llm_client.py          #   cerveau LLM compatible OpenAI (function calling)
 ├── actions/                   # "agir"
 │   ├── executor.py            #   exécution souris/clavier (pyautogui)
@@ -64,6 +65,7 @@ winassist/
 └── voice.py                   # démarrage vocal : `python -m winassist.voice`
 
 scripts/download_models.py     # télécharge les modèles STT locaux (whisper/vosk)
+scripts/run_scenario.py        # scénarios multi-étapes RÉELS (point 6)
 tests/                         # tests unitaires (aucun écran/réseau requis)
 requirements.txt
 .env.example                   # modèle de configuration (copier vers .env)
@@ -221,6 +223,23 @@ Exigence : un modèle multimodal (ex. `gpt-4o-mini`) avec
 `WINASSIST_LLM_MODE=openai` et `WINASSIST_API_KEY`. Sans cela, le repli
 vision est simplement contourné et on garde la vue UIA.
 
+### Scénarios multi-étapes réels (point 6)
+
+Le cerveau enchaîne les étapes d'une même phrase :
+
+```
+> ouvre le bloc-notes puis tape bonjour    # 2 actions, dans l'ordre
+> monte le volume et ouvre la calculatrice
+```
+
+Démonstration de bout en bout, sans clé API :
+
+```powershell
+python scripts/run_scenario.py          # liste les scénarios
+python scripts/run_scenario.py notepad  # ouvre le Bloc-notes et tape du texte
+python scripts/run_scenario.py bureau   # volume + Bureau (raccourcis)
+```
+
 ---
 
 ## 5. Tester le code
@@ -250,8 +269,11 @@ aucun clic réel, aucun accès réseau, aucun micro nécessaire.
 5. ✅ **Fiabilité & confort** — confirmation vocale avant action
    destructrice, journal écoutable (« lit le journal »), interruption
    vocale et touche Échap (`core/security.py`, `core/journal.py`) ;
-6. ⏳ **Scénarios multi-étapes réels** (ex. « ouvre WhatsApp et lance la
-   discussion avec maman »).
+6. ✅ **Scénarios multi-étapes réels** — phrases composées « ouvre le
+   bloc-notes puis tape bonjour », vérifiées de bout en bout
+   (`decision/compound.py`, `scripts/run_scenario.py`) ; avec LLM,
+   toutes les combinaisons d'étapes sont possibles (perception
+   réelle à chaque pas).
 
 ## 7. Sécurité — bonnes pratiques
 
