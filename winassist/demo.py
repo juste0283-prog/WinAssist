@@ -26,7 +26,7 @@ import sys
 from winassist.config import get_config
 from winassist.core.loop import AgenticLoop, RunResult
 from winassist.decision import make_decision_provider
-from winassist.perception import UIA_Perception
+from winassist.perception import HybridPerception, VisionPerception, UIA_Perception
 from winassist.actions import ActionExecutor
 
 QUIT_COMMANDS = {"quitter", "exit", "quit", "stop", "arrête"}
@@ -36,8 +36,12 @@ def build_session():
     """Assemble la session complète et renvoie (loop, tts)."""
     config = get_config()
 
-    # Banque de perception : UIA (Windows).
-    perception = UIA_Perception(config)
+    # Banque de perception : UIA d'abord, repli vision si UIA est aveugle.
+    perception = HybridPerception(
+        uia=UIA_Perception(config),
+        vision=VisionPerception(config) if config.vision_enabled else None,
+        config=config,
+    )
     # Cerveau : mock (défaut) ou LLM réel selon WINASSIST_LLM_MODE.
     decider = make_decision_provider(config)
     # Mains : exécution souris/clavier + raccourcis système.
@@ -120,6 +124,15 @@ def main() -> None:
             print(state.describe_visible())
             if tts:
                 tts.speak(state.describe_visible())
+            continue
+        if command.lower() == "décris":
+            try:
+                desc = loop.perception.describe_for_voice()
+            except Exception as exc:
+                desc = f"Description impossible : {exc}"
+            print(desc)
+            if tts:
+                tts.speak(desc)
             continue
         run_command(loop, config, command, tts)
 

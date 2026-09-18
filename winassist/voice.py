@@ -25,7 +25,7 @@ import sys
 from winassist.config import get_config
 from winassist.core.loop import AgenticLoop
 from winassist.decision import make_decision_provider
-from winassist.perception import UIA_Perception
+from winassist.perception import HybridPerception, UIA_Perception, VisionPerception
 from winassist.actions import ActionExecutor
 from winassist.io import make_stt, get_tts
 from winassist.io.voice_loop import VoiceSession
@@ -34,6 +34,15 @@ from winassist.io.interrupt import KeyboardStopMonitor
 # Conteneur partagé : la session vocale y pose la boucle courante,
 # et le moniteur clavier (ESC) peut l'arrêter à tout moment.
 LOOP_HOLDER: dict = {"loop": None}
+
+
+def _make_perception(config) -> HybridPerception:
+    """Perception hybride : UIA d'abord, repli vision si UIA est aveugle."""
+    return HybridPerception(
+        uia=UIA_Perception(config),
+        vision=VisionPerception(config),
+        config=config,
+    )
 
 
 def make_loop_factory(config=None):
@@ -45,7 +54,7 @@ def make_loop_factory(config=None):
     def factory() -> AgenticLoop:
         config_ = config or get_config()
         return AgenticLoop(
-            perception=UIA_Perception(config_),
+            perception=_make_perception(config_),
             decider=make_decision_provider(config_),
             executor=ActionExecutor(),
             max_iterations=config_.max_iterations,
