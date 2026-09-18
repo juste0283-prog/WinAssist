@@ -28,8 +28,18 @@ from __future__ import annotations
 
 import re
 
-from winassist.actions.quick_actions import KNOWN_APPS
-from winassist.core.models import Action, Ask, Click, Done, OpenApp, PressEnter, Scroll, TypeText
+from winassist.actions.quick_actions import COLORS, FOLDERS, KNOWN_APPS
+from winassist.core.models import (
+    Action,
+    Ask,
+    Click,
+    Done,
+    OpenApp,
+    PressEnter,
+    Scroll,
+    SystemAction,
+    TypeText,
+)
 from winassist.decision.base import DecisionContext, DecisionProvider
 
 # ------------------------------------------------------------------
@@ -42,14 +52,43 @@ SCROLL_WORDS = {
     "remonte": "up", "vers le haut": "up", "monte": "up",
 }
 
+# Raccourcis système directs (point 4). Chaque entrée :
+#   mot-clé -> (raccourci, message d'achèvement)
+SYSTEM_RULES: list[tuple[str, str, str]] = [
+    # --- Volume -----------------------------------------------------
+    ("monte le volume", "volume_up", "volume monté"),
+    ("augmente le volume", "volume_up", "volume monté"),
+    ("augmente le son", "volume_up", "volume monté"),
+    ("monte le son", "volume_up", "volume monté"),
+    ("baisse le volume", "volume_down", "volume baissé"),
+    ("diminue le volume", "volume_down", "volume baissé"),
+    ("baisse le son", "volume_down", "volume baissé"),
+    ("coupe le son", "volume_mute", "son coupé"),
+    ("coupé le son", "volume_mute", "son coupé"),
+    ("sourdine", "volume_mute", "son coupé"),
+    ("rends le son", "volume_mute", "son rétabli"),
+    ("remets le son", "volume_mute", "son rétabli"),
+    # --- Session / Bureau -------------------------------------------
+    ("verrouille l'écran", "lock_screen", "session verrouillée"),
+    ("verrouille la session", "lock_screen", "session verrouillée"),
+    ("verrouille", "lock_screen", "session verrouillée"),
+    ("affiche le bureau", "show_desktop", "Bureau affiché"),
+    ("montre le bureau", "show_desktop", "Bureau affiché"),
+    ("revient au bureau", "show_desktop", "Bureau affiché"),
+    ("retour au bureau", "show_desktop", "Bureau affiché"),
+    # --- Corbeille (sensible, point 5) --------------------------------
+    ("vide la corbeille", "empty_recycle_bin", "corbeille vidée"),
+    ("vidange la corbeille", "empty_recycle_bin", "corbeille vidée"),
+]
+
 
 class MockDecisionProvider(DecisionProvider):
     """Cerveau de démonstration : règles locales, déterministes."""
 
     def __init__(self) -> None:
-        # Noms d'apps connus triés par longueur décroissante : le plus
-        # spécifique l'emporte lors de la recherche dans la commande.
-        self._known_keys = sorted(KNOWN_APPS.keys(), key=len, reverse=True)
+        # Noms connus (apps + dossiers) triés par longueur décroissante :
+        # le plus spécifique l'emporte lors de la recherche dans la commande.
+        self._known_keys = sorted({**KNOWN_APPS, **FOLDERS}.keys(), key=len, reverse=True)
         # État interne de la session : on évite de rejouer une action déjà
         # envoyée pour la même commande (sinon la boucle "répète sans
         # progression" et s'arrête sèchement).
@@ -91,6 +130,28 @@ class MockDecisionProvider(DecisionProvider):
             self._sent.add((cmd, "press_enter"))
             return PressEnter()
 
+        # -- 3bis) raccourcis système directs (point 4) ------------------
+        #  Placé AVANT le défilement : « monte » peut vouloir dire volume.
+        action = self._system_action(cmd)
+        if action is not None:
+            key = f"system:{action.shortcut}"
+            if (cmd, key) in self._sent:
+                summary = next((m for w, s, m in SYSTEM_RULES if s == action.shortcut), "opération effectuée")
+                return Done(summary=summary)
+            self._sent.add((cmd, key))
+            return action
+
+        # -- 3ter) fond d'écran (point 4) ---------------------------------
+        if "fond" in cmd and ("écran" in cmd or "ecran" in cmd):
+            label = self._wallpaper_color(cmd)
+            if label is None:
+                return Ask(question="Quelle couleur veux-tu pour le fond d'écran ? (bleu, noir, blanc, vert, rouge, gris, beige)")
+            key = "system:set_wallpaper_color"
+            if (cmd, key) in self._sent:
+                return Done(summary=f"fond d'écran passé en {label}")
+            self._sent.add((cmd, key))
+            return SystemAction(shortcut="set_wallpaper_color", args=label)
+
         # -- 4) clic sur un élément -------------------------------------
         if "clique" in cmd or "appuie" in cmd or "touche sur" in cmd:
             target = self._find_target_label(cmd)
@@ -118,6 +179,21 @@ class MockDecisionProvider(DecisionProvider):
     # ------------------------------------------------------------------
     #  Helpers de reconnaissance
     # ------------------------------------------------------------------
+    def _system_action(self, cmd: str) -> SystemAction | None:
+        """Renvoie la SystemAction directe correspondant à la commande."""
+        for words, shortcut, _msg in SYSTEM_RULES:
+            if words in cmd:
+                return SystemAction(shortcut=shortcut)
+        return None
+
+    def _wallpaper_color(self, cmd: str) -> str | None:
+        """Trouve la couleur demandée pour le fond d'écran (si précisée)."""
+        compact = _normalize(cmd)
+        for label in COLORS:
+            if label in compact:
+                return label
+        return None
+
     def _find_app_name(self, cmd: str) -> str | None:
         """Trouve quelle app est mentionnée dans la commande.
 

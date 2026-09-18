@@ -6,14 +6,17 @@
 import unittest
 
 from winassist.core.models import (
-    parse_action,
+    Action,
     Ask,
     Click,
     Done,
+    OpenApp,
     ScreenState,
+    SystemAction,
     TypeText,
     UIElement,
     describe_action,
+    parse_action,
 )
 
 
@@ -72,6 +75,13 @@ class TestActionParsing(unittest.TestCase):
     def test_done(self):
         action = parse_action({"type": "done", "summary": "ok"})
         self.assertIsInstance(action, Done)
+
+    def test_system_action_roundtrip(self):
+        action = parse_action({"type": "system", "shortcut": "volume_up"})
+        self.assertIsInstance(action, SystemAction)
+        self.assertEqual(action.shortcut, "volume_up")
+        with_args = parse_action({"type": "system", "shortcut": "set_wallpaper_color", "args": "bleu"})
+        self.assertEqual(with_args.args, "bleu")
 
     def test_ask(self):
         action = parse_action({"type": "ask", "question": "quoi ?"})

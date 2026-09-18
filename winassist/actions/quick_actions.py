@@ -57,6 +57,228 @@ START_MENU_DIRS = [
     Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "Microsoft/Windows/Start Menu/Programs",
 ]
 
+# ------------------------------------------------------------------
+#  2) Raccourcis système directs (point 4)
+# ------------------------------------------------------------------
+#  Certaines opérations fréquentes n'ont AUCUN intérêt à passer par la
+#  boucle de clics : volume, verrouillage, corbeille, fond d'écran...
+#  On les expose ici par un nom de raccourci stable, appelable par le
+#  cerveau (mock ou LLM) via l'action SystemAction.
+#
+#  Chaque fonction renvoie (succès, message) et ne lève JAMAIS
+#  d'exception : la boucle doit continuer face à l'échec.
+
+# Raccourcis DANGEREUX ou IRREVERSIBLES : une confirmation vocale sera
+# exigée avant exécution (point 5 « sécurité »). Le point 4 les déclare
+# déjà pour que la sécurité n'ait rien à deviner.
+SENSITIVE_SHORTCUTS = {
+    "empty_recycle_bin",      # détruit définitivement des fichiers
+    "shutdown",               # éteint le PC
+    "restart",                # redémarre le PC
+    "delete_file",            # supprime un fichier
+}
+
+# Couleurs disponibles pour le fond d'écran uni.
+COLORS: dict[str, tuple[int, int, int]] = {
+    "bleu": (0, 110, 185),
+    "noir": (12, 12, 12),
+    "blanc": (245, 245, 245),
+    "vert": (0, 150, 90),
+    "rouge": (200, 30, 40),
+    "gris": (96, 96, 96),
+    "beige": (210, 200, 180),
+}
+
+
+def run_shortcut(shortcut: str, args: str = "") -> tuple[bool, str]:
+    """Exécute un raccourci système par son nom stable.
+
+    `run_shortcut` est LE point d'entrée unique pour SystemAction.
+    Ajoute ici tout nouveau raccourci (map ci-dessous).
+    """
+    table: dict[str, object] = {
+        "volume_up": _volume_up,
+        "volume_down": _volume_down,
+        "volume_mute": _volume_mute,
+        "lock_screen": _lock_screen,
+        "show_desktop": _show_desktop,
+        "empty_recycle_bin": _empty_recycle_bin,
+        "set_wallpaper_color": lambda: _set_wallpaper_color(args),
+        "open_folder": lambda: _open_folder(args),
+    }
+    handler = table.get(shortcut)
+    if handler is None:
+        return False, f"raccourci système inconnu : '{shortcut}'"
+    return _safe(handler)
+
+
+def _safe(handler) -> tuple[bool, str]:
+    """Appelle un handler et transforme toute exception en échec propre."""
+    try:
+        result = handler()
+        return (True, str(result)) if isinstance(result, str) else result
+    except Exception as exc:
+        return False, f"raccourci système en échec : {exc}"
+
+
+# --- Volume (touches media) ------------------------------------------
+_VK_VOLUME_MUTE = 0xAD
+_VK_VOLUME_DOWN = 0xAE
+_VK_VOLUME_UP = 0xAF
+
+
+def _volume_up() -> str:
+    _media_key(_VK_VOLUME_UP)
+    return "volume augmenté"
+
+
+def _volume_down() -> str:
+    _media_key(_VK_VOLUME_DOWN)
+    return "volume diminué"
+
+
+def _volume_mute() -> str:
+    _media_key(_VK_VOLUME_MUTE)
+    return "son coupé (ou rétabli)"
+
+
+def _key(vk: int, down: bool) -> None:
+    """Envoie un événement clavier bas niveau (SendInput, fiable)."""
+    import ctypes
+    from ctypes import wintypes
+
+    class KEYBDINPUT(ctypes.Structure):
+        _fields_ = [
+            ("wVk", wintypes.WORD),
+            ("wScan", wintypes.WORD),
+            ("dwFlags", wintypes.DWORD),
+            ("time", wintypes.DWORD),
+            ("dwExtraInfo", ctypes.POINTER(wintypes.ULONG)),
+        ]
+
+    class INPUT(ctypes.Structure):
+        class _I(ctypes.Union):
+            _fields_ = [("ki", KEYBDINPUT)]
+
+        _anonymous_ = ("_input",)
+        _fields_ = [("type", wintypes.DWORD), ("_input", _I)]
+
+    flags = 0x0002 if not down else 0  # KEYEVENTF_KEYUP quand on relâche
+    inp = INPUT()
+    inp.type = 1  # INPUT_KEYBOARD
+    inp.ki.wVk = vk
+    inp.ki.dwFlags = flags
+    ctypes.windll.user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+
+
+def _media_key(vk: int) -> None:
+    _key(vk, True)
+    _key(vk, False)
+
+
+# --- Fenêtres / session ----------------------------------------------
+def _lock_screen() -> str:
+    import ctypes
+
+    ctypes.windll.user32.LockWorkStation()
+    return "session verrouillée"
+
+
+def _show_desktop() -> str:
+    """Affiche le Bureau (équivalent de Win+D)."""
+    _key(0x5B, True)   # touche Windows gauche
+    _key(0x44, True)   # D
+    _key(0x44, False)
+    _key(0x5B, False)
+    return "Bureau affiché"
+
+
+# --- Corbeille -------------------------------------------------------
+def _empty_recycle_bin() -> str:
+    """Vide la corbeille (PowerShell Clear-RecycleBin, sans confirmation)."""
+    import subprocess
+
+    proc = subprocess.run(
+        ["powershell", "-NoProfile", "-Command", "Clear-RecycleBin -DriveLetter C -Force; Clear-RecycleBin -DriveLetter D -Force -ErrorAction SilentlyContinue"],
+        capture_output=True,
+        timeout=120,
+    )
+    if proc.returncode == 0:
+        return "corbeille vidée"
+    err = (proc.stderr or proc.stdout or b"").decode("utf-8", errors="ignore")[:160]
+    return f"échec de la vidange de la corbeille : {err}"
+
+
+# --- Fond d'écran ----------------------------------------------------
+def _set_wallpaper_color(color: str) -> tuple[bool, str]:
+    """Change le fond d'écran pour une couleur unie (label en français)."""
+    label = color.strip().lower().lstrip("en ")
+    rgb = COLORS.get(label)
+    if rgb is None:
+        known = ", ".join(sorted(COLORS))
+        return False, f"couleur inconnue. Choisis parmi : {known}"
+    bmp = _make_color_bmp(rgb)
+    _set_wallpaper(bmp)
+    return True, f"fond d'écran passé en {label}"
+
+
+def _make_color_bmp(rgb: tuple[int, int, int], path: Path | str | None = None) -> Path:
+    """Fabrique un petit fichier BMP uni (SPI n'accepte que du BMP)."""
+    from PIL import Image
+
+    path = Path(path) if path else Path(os.environ.get("TEMP", ".")) / "winassist_wallpaper.bmp"
+    img = Image.new("RGB", (16, 16), rgb)
+    img.save(path, "BMP")
+    return path
+
+
+def _set_wallpaper(path: Path) -> None:
+    """Applique un fond d'écran via SystemParametersInfoW (ctypes)."""
+    import ctypes
+
+    SPI_SETDESKWALLPAPER = 20
+    SPIF_UPDATEINIFILE = 0x01
+    SPIF_SENDWININICHANGE = 0x02
+    ctypes.windll.user32.SystemParametersInfoW(
+        SPI_SETDESKWALLPAPER, 0, str(path), SPIF_UPDATEINIFILE | SPIF_SENDWININICHANGE
+    )
+
+
+# --- Dossiers personnels ---------------------------------------------
+FOLDERS: dict[str, str] = {
+    "téléchargements": "shell:downloads",
+    "telechargements": "shell:downloads",
+    "téléchargement": "shell:downloads",
+    "documents": "shell:personal",
+    "mes documents": "shell:personal",
+    "images": "shell:my pictures",
+    "mes images": "shell:my pictures",
+    "photos": "shell:my pictures",
+    "musique": "shell:my music",
+    "ma musique": "shell:my music",
+    "vidéos": "shell:my video",
+    "videos": "shell:my video",
+    "bureau": "shell:desktop",
+    "le bureau": "shell:desktop",
+}
+
+
+def _open_folder(folder: str) -> str:
+    """Ouvre un dossier personnel (Documents, Images, Téléchargements...)."""
+    target = FOLDERS.get(folder.strip().lower().lstrip("le "))
+    if target is None:
+        return f"dossier inconnu : '{folder}'"
+    subprocess.Popen(["explorer.exe", target], close_fds=True)
+    return f"dossier '{folder}' ouvert"
+
+
+def _open_folder_from_app_name(name: str) -> tuple[bool, str | None]:
+    """Gère l'ouverture des dossiers personnels via launch_app si besoin."""
+    if name in FOLDERS:
+        subprocess.Popen(["explorer.exe", FOLDERS[name]], close_fds=True)
+        return True, f"dossier '{name}' ouvert"
+    return False, None
+
 
 def launch_app(name: str) -> tuple[bool, str]:
     """Lance l'application correspondant à `name`.
@@ -70,6 +292,11 @@ def launch_app(name: str) -> tuple[bool, str]:
     exe = KNOWN_APPS.get(clean)
     if exe is not None:
         return _start_exe(exe)
+
+    # Stratégie 1bis : dossiers personnels (Documents, Images, ...).
+    ok, msg = _open_folder_from_app_name(clean)
+    if ok:
+        return ok, msg
 
     # Stratégie 2 : raccourci dans le Menu Démarrer (gère les apps du
     # Microsoft Store, ex. WhatsApp, Word...).
@@ -146,4 +373,4 @@ def _normalize(text: str) -> str:
     return "".join(accents.get(ch, ch) for ch in lowered)
 
 
-__all__ = ["launch_app", "KNOWN_APPS"]
+__all__ = ["launch_app", "KNOWN_APPS", "FOLDERS", "run_shortcut", "SENSITIVE_SHORTCUTS", "COLORS", "_make_color_bmp"]

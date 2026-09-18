@@ -162,6 +162,27 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "system",
+            "description": (
+                "Exécute un raccourci système DIRECT (aucun clic nécessaire) : "
+                "\"volume_up\", \"volume_down\", \"volume_mute\", \"lock_screen\", "
+                "\"show_desktop\", \"empty_recycle_bin\", "
+                "\"set_wallpaper_color\" (args = couleur en français : bleu, noir, blanc, vert, rouge, gris, beige), "
+                "\"open_folder\" (args = documents, images, telechargements, musique, videos, bureau)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "shortcut": {"type": "string", "description": "le nom du raccourci système"},
+                    "args": {"type": "string", "description": "argument optionnel (couleur ou dossier)"},
+                },
+                "required": ["shortcut"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "done",
             "description": "À appeler quand la tâche demandée est COMPLÈTE. Résume ce qui a été fait.",
             "parameters": {
@@ -214,6 +235,7 @@ _TOOL_TO_TYPE = {
     "scroll": "scroll",
     "drag": "drag",
     "open_app": "open_app",
+    "system": "system",
     "done": "done",
     "ask": "ask",
     "click": "click",
