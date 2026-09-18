@@ -95,6 +95,36 @@ class Config:
     #  Active le TTS (pyttsx3). On peut le désactiver pour ne tester
     #  que la partie logique, sans bruit.
     enable_tts: bool = field(default_factory=lambda: _env_bool("WINASSIST_TTS", True))
+    #  Moteur TTS : "pyttsx3" (local, défaut) ou "edge" (voix Edge, réseau).
+    tts_engine: str = field(default_factory=lambda: os.environ.get("WINASSIST_TTS_ENGINE", "pyttsx3").strip().lower())
+    #  Voix utilisée par edge-tts (si tts_engine=edge).
+    edge_voice: str = field(default_factory=lambda: os.environ.get("WINASSIST_EDGE_VOICE", "fr-FR-EloiseNeural"))
+
+    # --- Reconnaissance vocale (point 2) ---------------------------
+    #  Moteur STT : "auto" (détection), "whisper_api", "whisper_local",
+    #  "vosk", "none". En "auto" : API (si clé) -> whisper local -> vosk.
+    stt_engine: str = field(default_factory=lambda: os.environ.get("WINASSIST_STT_ENGINE", "auto").strip().lower())
+    #  Taille du modèle whisper local (tiny/base/small/medium).
+    stt_model_size: str = field(default_factory=lambda: os.environ.get("WINASSIST_STT_MODEL_SIZE", "base"))
+    #  Modèle vocale cible (whisper) : fr pour le français.
+    stt_language: str = field(default_factory=lambda: os.environ.get("WINASSIST_STT_LANGUAGE", "fr"))
+    #  Chemin du modèle Vosk (dossier contenant amodel français).
+    vosk_model_path: str = field(default_factory=lambda: os.environ.get("WINASSIST_VOSK_MODEL_PATH", ""))
+    #  Format audio commun (Hz). Whisper est entraîné sur du 16 kHz.
+    audio_sample_rate: int = field(default_factory=lambda: int(os.environ.get("WINASSIST_AUDIO_SAMPLE_RATE", "16000")))
+    #  Seuil RMS de détection de voix (échelle int16, 0-32768).
+    vad_threshold: int = field(default_factory=lambda: int(os.environ.get("WINASSIST_VAD_THRESHOLD", "300")))
+    #  Durée maximale d'une phrase (sécurité si VAD trop permissif).
+    max_phrase_seconds: float = field(default_factory=lambda: float(os.environ.get("WINASSIST_MAX_PHRASE_SECONDS", "10")))
+
+    # --- Mot d'activation (wake word) ------------------------------
+    #  "1" : l'assistant n'agit que si on l'appelle d'abord.
+    wake_word_enabled: bool = field(default_factory=lambda: _env_bool("WINASSIST_WAKE_WORD", True))
+    #  Phrases d'activation (séparées par des virgules).
+    wake_phrases: str = field(default_factory=lambda: os.environ.get(
+        "WINASSIST_WAKE_PHRASES",
+        "ok winassist,hey winassist,bonjour winassist,winassist",
+    ))
 
     @classmethod
     def from_env(cls) -> "Config":

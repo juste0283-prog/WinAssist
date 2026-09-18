@@ -10,8 +10,10 @@ comme un humain (arbre UI Automation, puis vision en secours), décide à
 chaque pas d'**une seule action** à exécuter, et boucle jusqu'à la
 réalisation de la tâche.
 
-Ce dépôt contient le **prototype du point 1** du plan de développement :
-la boucle `perception → décision → action`, testable en local.
+Ce dépôt contient les points 1 et 2 du plan de développement :
+- **point 1** — la boucle `perception → décision → action`, testable en local ;
+- **point 2** — la boucle vocale de bout en bout (« OK WinAssist, ouvre le
+  bloc-notes » → action + retour vocal).
 
 ---
 
@@ -19,11 +21,11 @@ la boucle `perception → décision → action`, testable en local.
 
 | # | Brique | Rôle | Statut |
 |---|--------|------|--------|
-| 1 | **Entrée vocale (STT)** | Whisper + repli Vosk, mot d'activation | *point 2* |
+| 1 | **Entrée vocale (STT)** | Whisper + repli Vosk, mot d'activation | ✅ implémenté |
 | 2 | **Perception de l'écran** | Arbre UIA de la fenêtre active (+ repli vision) | ✅ UIA / *vision point 3* |
 | 3 | **Boucle agentique** | Décision → action → observation, avec garde-fous | ✅ implémenté |
 | 4 | **Exécution des actions** | Primitives universelles + raccourcis système | ✅ clics/clavier / *raccourcis point 4* |
-| 5 | **Retour vocal (TTS)** | Confirmation orale, descriptions, erreurs | ✅ TTS local (pyttsx3) |
+| 5 | **Retour vocal (TTS)** | Confirmation orale, descriptions, erreurs | ✅ pyttsx3 + edge-tts |
 | 6 | **Sécurité** | Confirmation avant actions sensibles, journal, interruption | *point 5* |
 
 ---
@@ -34,11 +36,12 @@ la boucle `perception → décision → action`, testable en local.
 winassist/
 ├── core/                      # le cœur transversé
 │   ├── models.py              #   modèles Pydantic : écran + actions
+│   ├── context.py             #   DecisionContext (le "paquet" remis à l'IA)
 │   ├── history.py             #   journal des actions + détection de blocage
 │   └── loop.py                #   LA boucle agentique (perception→décision→action)
 ├── perception/                # "voir" l'écran
 │   └── uia.py                 #   extraction de l'arbre UI Automation (Win10/11)
-│   └── vision.py              #   repli vision (placeholder, point 3)
+│   └── vision.py              #   repli vision (point 3)
 ├── decision/                  # "réfléchir"
 │   ├── base.py                #   interfaces DecisionProvider / DecisionContext
 │   ├── mock.py                #   cerveau local à règles (démo, tests)
@@ -46,12 +49,19 @@ winassist/
 ├── actions/                   # "agir"
 │   ├── executor.py            #   exécution souris/clavier (pyautogui)
 │   └── quick_actions.py       #   raccourcis système : ouverture d'apps
-├── io/                        # entrées/sorties audio
-│   ├── tts.py                 #   synthèse vocale (pyttsx3) — opérationnelle
-│   └── stt.py                 #   reconnaissance vocale (point 2)
+├── io/                        # entrées/sorties audio/vocales
+│   ├── tts.py                 #   synthèse vocale (pyttsx3 + edge-tts)
+│   ├── stt.py                 #   STT : Whisper API / local / Vosk
+│   ├── wake.py                #   mot d'activation (pur texte, testable)
+│   ├── audio.py               #   micro + détection de voix (VAD)
+│   ├── listener.py            #   écoute continue + interruption vocale
+│   ├── voice_loop.py          #   session vocale complète
+│   └── interrupt.py           #   arrêt d'urgence clavier (ECHAP)
 ├── config.py                  # config via variables d'environnement (.env)
-└── demo.py                    # démo console : `python -m winassist.demo`
+├── demo.py                    # démo console : `python -m winassist.demo`
+└── voice.py                   # démarrage vocal : `python -m winassist.voice`
 
+scripts/download_models.py     # télécharge les modèles STT locaux (whisper/vosk)
 tests/                         # tests unitaires (aucun écran/réseau requis)
 requirements.txt
 .env.example                   # modèle de configuration (copier vers .env)
@@ -136,6 +146,54 @@ mock** pour rester utilisable.
 
 ---
 
+## 4bis. Contrôler à la voix (point 2)
+
+### 1. Préparer un moteur STT (au choix)
+
+```powershell
+# Option A — Whisper local hors-ligne (recommandé) :
+python -m pip install faster-whisper
+python scripts/download_models.py --whisper base
+
+# Option B — Whisper via API (clé OpenAI ou serveur compatible) :
+#   renseigne WINASSIST_API_KEY dans .env
+
+# Option C — Vosk hors-ligne léger :
+# python -m pip install vosk
+# python scripts/download_models.py --vosk
+#   puis WINASSIST_VOSK_MODEL_PATH=models/vosk-small-fr dans .env
+```
+
+Sans aucun moteur installé, `python -m winassist.voice` affiche une
+erreur claire et te renvoie vers la démo console.
+
+### 2. Lancer l'assistant vocal
+
+```powershell
+python -m winassist.voice
+```
+
+Puis, au micro :
+
+```
+"OK WinAssist, ouvre le bloc-notes"
+"OK WinAssist, tape bonjour"
+"arrête"              # stoppe la tâche en cours
+"au revoir"           # quitte la session
+```
+
+Le **mot d'activation** évite d'exécuter des phrases entendues au hasard.
+Pendant l'exécution d'une tâche, une **interruption vocale** (« arrête »)
+ou la touche **Échap** arrêtent la boucle immédiatement.
+
+### TTS au choix
+
+- `WINASSIST_TTS_ENGINE=pyttsx3` : voix locale Windows (défaut, sans réseau).
+- `WINASSIST_TTS_ENGINE=edge` : voix Edge naturelle via internet
+  (`WINASSIST_EDGE_VOICE=fr-FR-EloiseNeural`).
+
+---
+
 ## 5. Tester le code
 
 ```powershell
@@ -143,16 +201,16 @@ python -m unittest discover -s tests -v
 ```
 
 Les tests sont **déterministes** : ils injectent de faux composants
-(écran simulé, cerveau scripté, main enregistreuse) — aucun clic réel,
-aucun accès réseau.
+(écran simulé, cerveau scripté, main enregistreuse, micro simulé) —
+aucun clic réel, aucun accès réseau, aucun micro nécessaire.
 
 ---
 
 ## 6. Et maintenant ? (points suivants, dans l'ordre)
 
-1. ✅ **Boucle perception→décision→action** (ce prototype) ;
-2. ⏳ **STT/TTS de bout en bout** — suivre la voix : Whisper/Vosk + le TTS
-   déjà branché (, fichiers `io/stt.py` à compléter) ;
+1. ✅ **Boucle perception→décision→action** ;
+2. ✅ **Voix de bout en bout** — STT (Whisper/Vosk) + mot d'activation +
+   TTS + interruption vocale ;
 3. ⏳ **Repli vision** — quand l'arbre UIA est vide :
    capture d'écran + modèle multimodal (`perception/vision.py`) ;
 4. ⏳ **Raccourcis système** — volume, corbeille, fond d'écran...
