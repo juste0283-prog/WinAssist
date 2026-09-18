@@ -100,6 +100,16 @@ class Config:
     #  Sécurité anti-folie de pyautogui : déplacer la souris dans un
     #  coin de l'écran interrompt immédiatement le programme (failsafe).
     pyautogui_failsafe: bool = field(default_factory=lambda: _env_bool("WINASSIST_FAILSAFE", True))
+    #  Exiger une confirmation avant une action SENSIBLE (corbeille,
+    #  extinction/redémarrage...). Sans confirmer branché, ces actions
+    #  sont refusées d'office (règle défensive).
+    confirm_sensitive: bool = field(default_factory=lambda: _env_bool("WINASSIST_CONFIRM_SENSITIVE", True))
+
+    # --- Journal (point 5) -----------------------------------------
+    #  Écrire le journal JSON Lines de la session (réécoutable à voix haute).
+    journal_enabled: bool = field(default_factory=lambda: _env_bool("WINASSIST_JOURNAL", True))
+    #  Dossier de stockage des journaux.
+    journal_dir: Path = field(default_factory=lambda: Path(os.environ.get("WINASSIST_JOURNAL_DIR", "logs")))
 
     # --- Retour vocal --------------------------------------------
     #  Active le TTS (pyttsx3). On peut le désactiver pour ne tester
