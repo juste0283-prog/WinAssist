@@ -192,6 +192,11 @@ Puis, au micro :
 "au revoir"           # quitte la session
 ```
 
+> **Avec le modèle Vosk français**, le terme inventé « WinAssist » est
+> hors-vocabulaire (transcrit « oui assis »…). Utilise plutôt
+> « OK assistant » / « assistant » (variantes activées par défaut) —
+> la détection tolère aussi les légères coquilles de transcription.
+
 Le **mot d'activation** évite d'exécuter des phrases entendues au hasard.
 Pendant l'exécution d'une tâche, une **interruption vocale** (« arrête »)
 ou la touche **Échap** arrêtent la boucle immédiatement.
