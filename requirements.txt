@@ -11,16 +11,20 @@ comtypes>=1.4.0         # bibliothèque COM sous-jacente de pywinauto
 PyAutoGUI>=0.9.54       # souris / clavier
 pyperclip>=1.11         # presse-papiers (saisie de texte fiable)
 Pillow>=10.0            # capture d'écran (repli vision, point 3)
-numpy>=1.26             # utilisé par la vision (point 3)
+numpy>=1.26             # utilisé par la vision et le traitement audio
 opencv-python>=4.9      # traitement d'image (point 3)
+mss>=9.0                # capture d'écran rapide (point 3)
 
 # --- Décision (réfléchir) --------------------------------------
 pydantic>=2.5           # modèles de données et validation
-openai>=1.30            # client API OpenAI-compatible (function calling)
+openai>=1.30            # client API OpenAI-compatible (function calling + vision + STT)
 
 # --- Retour vocal (TTS) ----------------------------------------
 pyttsx3>=2.99           # synthèse vocale locale Windows (SAPI 5)
+edge-tts>=7.0           # voix Edge naturelles (optionnel, réseau)
 
-# --- Reconnaissance vocale (POINT 2, à venir) ------------------
-# faster-whisper>=0.10
-# vosk>=0.3.45
+# --- Entrée vocale (STT) ---------------------------------------
+sounddevice>=0.5        # capture micro (PortAudio fourni dans le paquet)
+# Moteurs STT (au choix ; le plus simple à l'usage) :
+faster-whisper>=1.0     # Whisper LOCAL hors-ligne (modèle à télécharger une fois)
+# vosk>=0.3.45          # alternative locale légère hors-ligne (modèle FR à télécharger)

@@ -123,6 +123,15 @@ class AgenticLoop:
         self.action_delay = action_delay
         # Rappel pour streamer les événements vers la console / la voix.
         self.on_event = on_event or (lambda msg: None)
+        # Drapeau d'interruption : posé par un thread externe (voix,
+        # clavier) pour arrêter la boucle entre deux actions.
+        self.cancel_requested = False
+        self.cancel_reason = "Interruption demandée par l'utilisateur."
+
+    def cancel(self, reason: str = "Interruption demandée par l'utilisateur.") -> None:
+        """Demande l'arrêt de la boucle (thread-safe, appelable d'ailleurs)."""
+        self.cancel_requested = True
+        self.cancel_reason = reason
 
     # -- petit utilitaire interne de journalisation -------------
     def _log(self, msg: str) -> None:
@@ -142,7 +151,17 @@ class AgenticLoop:
 
         previous_action: Optional[Action] = None
 
+        # Arrêt demandé avant même de commencer ?
+        if self.cancel_requested:
+            return RunResult(False, self.cancel_reason, history=history, final_state=state)
+
         for i in range(1, self.max_iterations + 1):
+            # -- interruption : on vérifie le drapeau à CHAQUE itération --
+            if self.cancel_requested:
+                self._log(f"Interruption demandée : {self.cancel_reason}")
+                return RunResult(False, self.cancel_reason,
+                                 iterations=i - 1, history=history, final_state=state)
+
             # -- (a) DÉCISION ----------------------------------------
             try:
                 action = self.decider.decide(DecisionContext(user_command, state, history))
