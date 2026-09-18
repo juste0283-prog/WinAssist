@@ -159,16 +159,18 @@ mock** pour rester utilisable.
 ### 1. Préparer un moteur STT (au choix)
 
 ```powershell
-# Option A — Whisper local hors-ligne (recommandé) :
+# Option A — Whisper local hors-ligne (précis, modèle plus lourd) :
 python -m pip install faster-whisper
 python scripts/download_models.py --whisper base
+#   Remarque : pas de wheel pour Python 3.13 pour l'instant — la compilation
+#   depuis les sources est très longue (préférer l'option C sur 3.13).
 
 # Option B — Whisper via API (clé OpenAI ou serveur compatible) :
 #   renseigne WINASSIST_API_KEY dans .env
 
-# Option C — Vosk hors-ligne léger :
-# python -m pip install vosk
-# python scripts/download_models.py --vosk
+# Option C — Vosk hors-ligne LÉGER (recommandé sur Python 3.13) :
+python -m pip install --only-binary=:all: vosk==0.3.41
+python scripts/download_models.py --vosk
 #   puis WINASSIST_VOSK_MODEL_PATH=models/vosk-small-fr dans .env
 ```
 
