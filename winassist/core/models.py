@@ -208,6 +208,20 @@ class OpenApp(BaseModel):
     app_name: str
 
 
+class SystemAction(BaseModel):
+    """Raccourci système direct, sans passer par les clics (point 4).
+
+    Exemples : monter le volume, verrouiller la session, vider la
+    corbeille, changer le fond d'écran, afficher le bureau...
+    Le dispatcher actions/quick_actions.py connaît chaque `shortcut` et
+    renvoie (succès, message) ; `args` est un paramètre optionnel propre
+    au raccourci (ex. la couleur du fond d'écran).
+    """
+    type: Literal["system"] = "system"
+    shortcut: str
+    args: str = ""
+
+
 class PressEnter(BaseModel):
     type: Literal["press_enter"] = "press_enter"
 
@@ -228,7 +242,7 @@ class Ask(BaseModel):
 Action = Annotated[
     Union[
         Click, DoubleClick, RightClick,
-        TypeText, PressKeys, PressEnter, Scroll, Drag, OpenApp,
+        TypeText, PressKeys, PressEnter, Scroll, Drag, OpenApp, SystemAction,
         Done, Ask,
     ],
     Field(discriminator="type"),
@@ -254,7 +268,7 @@ def parse_action(data: dict) -> Action:
 # un signe de blocage potentiel).
 PROGRESSIVE_ACTIONS = {
     "click", "double_click", "right_click", "type_text",
-    "press_keys", "scroll", "drag", "open_app",
+    "press_keys", "scroll", "drag", "open_app", "system",
 }
 
 
@@ -279,6 +293,9 @@ def describe_action(action: Action) -> str:
         return f"glisser de ({action.x1},{action.y1}) vers ({action.x2},{action.y2})"
     if kind == "open_app":
         return f"ouverture de l'application '{action.app_name}'"
+    if kind == "system":
+        args = f" ({action.args})" if action.args else ""
+        return f"raccourci système '{action.shortcut}'{args}"
     if kind == "done":
         return f"tâche terminée : {action.summary}"
     if kind == "ask":

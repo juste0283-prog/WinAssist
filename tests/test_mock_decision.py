@@ -33,6 +33,11 @@ class TestMockOpen(unittest.TestCase):
         # pas de nom d'app connu -> on demande une précision
         self.assertEqual(action.type, "ask")
 
+    def test_ouvre_dossier_personnel(self):
+        action = self.mock.decide(context("ouvre mes documents"))
+        self.assertIsInstance(action, OpenApp)
+        self.assertEqual(action.app_name, "mes documents")
+
     def test_open_then_done_when_window_matches(self):
         # Premier passage : on ouvre.
         first = self.mock.decide(context("ouvre le bloc-notes"))
@@ -90,6 +95,50 @@ class TestMockClick(unittest.TestCase):
     def test_click_unknown_asks(self):
         action = self.mock.decide(context("clique sur Réservé-aucun", elements=self._screen_with_button()))
         self.assertEqual(action.type, "ask")
+
+
+class TestMockSystemShortcuts(unittest.TestCase):
+    def setUp(self):
+        self.mock = MockDecisionProvider()
+
+    def test_volume_up(self):
+        action = self.mock.decide(context("monte le volume"))
+        self.assertEqual(action.type, "system")
+        self.assertEqual(action.shortcut, "volume_up")
+
+    def test_volume_down(self):
+        action = self.mock.decide(context("baisse le volume"))
+        self.assertEqual(action.shortcut, "volume_down")
+
+    def test_mute(self):
+        action = self.mock.decide(context("coupe le son"))
+        self.assertEqual(action.shortcut, "volume_mute")
+
+    def test_lock(self):
+        action = self.mock.decide(context("verrouille l'écran"))
+        self.assertEqual(action.shortcut, "lock_screen")
+
+    def test_show_desktop(self):
+        action = self.mock.decide(context("affiche le bureau"))
+        self.assertEqual(action.shortcut, "show_desktop")
+
+    def test_recycle_bin(self):
+        action = self.mock.decide(context("vide la corbeille"))
+        self.assertEqual(action.shortcut, "empty_recycle_bin")
+
+    def test_wallpaper_color(self):
+        action = self.mock.decide(context("change le fond d'écran en bleu"))
+        self.assertEqual(action.shortcut, "set_wallpaper_color")
+        self.assertEqual(action.args, "bleu")
+
+    def test_wallpaper_without_color_asks(self):
+        action = self.mock.decide(context("change le fond d'écran"))
+        self.assertEqual(action.type, "ask")
+
+    def test_volume_then_done(self):
+        self.mock.decide(context("monte le volume"))
+        again = self.mock.decide(context("monte le volume"))
+        self.assertIsInstance(again, Done)
 
 
 class TestMockFallback(unittest.TestCase):

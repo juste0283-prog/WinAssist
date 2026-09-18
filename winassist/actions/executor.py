@@ -34,6 +34,7 @@ from winassist.core.models import (
     PressKeys,
     RightClick,
     Scroll,
+    SystemAction,
     TypeText,
 )
 
@@ -79,6 +80,8 @@ class ActionExecutor:
             return self._drag(action.x1, action.y1, action.x2, action.y2)
         if kind == "open_app":
             return open_app_resolver(action.app_name)
+        if kind == "system":
+            return system_shortcut_resolver(action.shortcut, action.args)
 
         return False, f"Action inconnue : {kind}"
 
@@ -166,6 +169,17 @@ def open_app_resolver(app_name: str) -> tuple[bool, str]:
 
     success, message = launch_app(app_name)
     return success, message
+
+
+def system_shortcut_resolver(shortcut: str, args: str = "") -> tuple[bool, str]:
+    """Exécute un raccourci système direct (volume, corbeille, fond d'écran...).
+
+    Renvoie toujours (succès, message), jamais d'exception : la boucle
+    doit pouvoir continuer à tourner après un échec.
+    """
+    from winassist.actions.quick_actions import run_shortcut
+
+    return run_shortcut(shortcut, args)
 
 
 __all__ = ["ActionExecutor"]

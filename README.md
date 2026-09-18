@@ -24,7 +24,7 @@ Ce dépôt contient les points 1 et 2 du plan de développement :
 | 1 | **Entrée vocale (STT)** | Whisper + repli Vosk, mot d'activation | ✅ implémenté |
 | 2 | **Perception de l'écran** | Arbre UIA de la fenêtre active (+ repli vision) | ✅ UIA + vision |
 | 3 | **Boucle agentique** | Décision → action → observation, avec garde-fous | ✅ implémenté |
-| 4 | **Exécution des actions** | Primitives universelles + raccourcis système | ✅ clics/clavier / *raccourcis point 4* |
+| 4 | **Exécution des actions** | Primitives universelles + raccourcis système | ✅ clics/clavier + raccourcis |
 | 5 | **Retour vocal (TTS)** | Confirmation orale, descriptions, erreurs | ✅ pyttsx3 + edge-tts |
 | 6 | **Sécurité** | Confirmation avant actions sensibles, journal, interruption | *point 5* |
 
@@ -48,7 +48,7 @@ winassist/
 │   └── llm_client.py          #   cerveau LLM compatible OpenAI (function calling)
 ├── actions/                   # "agir"
 │   ├── executor.py            #   exécution souris/clavier (pyautogui)
-│   └── quick_actions.py       #   raccourcis système : ouverture d'apps
+│   └── quick_actions.py       #   raccourcis système : apps, volume, corbeille, fond d'écran
 ├── io/                        # entrées/sorties audio/vocales
 │   ├── tts.py                 #   synthèse vocale (pyttsx3 + edge-tts)
 │   ├── stt.py                 #   STT : Whisper API / local / Vosk
@@ -114,6 +114,9 @@ Puis essaye, dans l'ordre :
 ```
 > ouvre le bloc-notes          # ouvre Notepad via raccourci système
 > tape bonjour                 # saisit le texte dans Notepad
+> monte le volume              # raccourci système direct (volume)
+> change le fond d'écran en bleu  # raccourci système direct (fond d'écran)
+> ouvre mes documents          # ouvre le dossier Documents
 > écran                        # montre ce que l'assistant "voit" (UIA)
 > décris                       # décrive l'écran en français (voix/vision)
 > valide
@@ -229,8 +232,10 @@ aucun clic réel, aucun accès réseau, aucun micro nécessaire.
 3. ✅ **Repli vision** — quand UIA ne voit rien : capture d'écran + modèle
    multimodal, description de l'écran en français pour la voix
    (`perception/vision.py`, commande `décris`) ;
-4. ⏳ **Raccourcis système** — volume, corbeille, fond d'écran...
-   (`actions/quick_actions.py`) ;
+4. ✅ **Raccourcis système** — volume, verrouillage, Bureau, corbeille,
+   fond d'écran, dossiers personnels (`actions/quick_actions.py`, action
+   `SystemAction` ; les raccourcis sensibles sont déjà déclarés pour la
+   sécurité) ;
 5. ⏳ **Fiabilité & confort** — confirmations avant action destructrice,
    journal écoutable, interruption vocale ;
 6. ⏳ **Scénarios multi-étapes réels** (ex. « ouvre WhatsApp et lance la
