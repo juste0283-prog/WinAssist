@@ -1,0 +1,16 @@
+# Fichiers secrets : jamais de clé API dans le dépôt
+.env
+
+# Artefacts Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Fichiers de logs créés par l'assistant
+logs/
+*.log
+
+# Caches divers
+.DS_Store

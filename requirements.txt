@@ -1,0 +1,26 @@
+# ============================================================
+#  WinAssist — dépendances Python (installer avec pip)
+# ============================================================
+#  Installation :  python -m pip install -r requirements.txt
+
+# --- Perception (voir l'écran) ---------------------------------
+pywinauto>=0.6.9        # UI Automation (arbre d'éléments UIA)
+comtypes>=1.4.0         # bibliothèque COM sous-jacente de pywinauto
+
+# --- Action (agir sur l'écran) --------------------------------
+PyAutoGUI>=0.9.54       # souris / clavier
+pyperclip>=1.11         # presse-papiers (saisie de texte fiable)
+Pillow>=10.0            # capture d'écran (repli vision, point 3)
+numpy>=1.26             # utilisé par la vision (point 3)
+opencv-python>=4.9      # traitement d'image (point 3)
+
+# --- Décision (réfléchir) --------------------------------------
+pydantic>=2.5           # modèles de données et validation
+openai>=1.30            # client API OpenAI-compatible (function calling)
+
+# --- Retour vocal (TTS) ----------------------------------------
+pyttsx3>=2.99           # synthèse vocale locale Windows (SAPI 5)
+
+# --- Reconnaissance vocale (POINT 2, à venir) ------------------
+# faster-whisper>=0.10
+# vosk>=0.3.45
